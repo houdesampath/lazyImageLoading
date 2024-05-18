@@ -4,22 +4,29 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.recyclerview.widget.RecyclerView
+import androidx.recyclerview.widget.RecyclerView.ViewHolder
 import com.example.prashantadvaitfoundationtask.databinding.GridViewBinding
-import com.example.prashantadvaitfoundationtask.ui.MainActivity
+import com.example.prashantadvaitfoundationtask.databinding.LoadingViewBinding
 import com.example.prashantadvaitfoundationtask.utils.ImageLoader
 import timber.log.Timber
 
-class ImageAdapter : RecyclerView.Adapter<ImageAdapter.GridViewHolder>() {
+class ImageAdapter : RecyclerView.Adapter<ViewHolder>() {
 
     private val imageUrls = ArrayList<String>()
     inner class GridViewHolder(private val binding: GridViewBinding) : RecyclerView.ViewHolder(binding.root) {
         fun bind(imageUrl: String, position: Int) {
-            ImageLoader.loadImage(imageUrl, binding.imageView, binding.progressBar, position)
+            ImageLoader.loadImage(imageUrl, binding.imageView, position)
         }
 
-        fun onViewRecycled() {
+        fun onViewRecycled(adapterPosition: Int) {
+            Timber.i("On View Recycled: $adapterPosition")
             ImageLoader.cancelPotentialWork(binding.imageView)
             binding.imageView.setImageDrawable(null)
+        }
+    }
+
+    inner class LoadingViewHolder(private val binding: LoadingViewBinding) : RecyclerView.ViewHolder(binding.root) {
+        fun bind() {
             binding.progressBar.visibility = View.GONE
         }
     }
@@ -39,14 +46,18 @@ class ImageAdapter : RecyclerView.Adapter<ImageAdapter.GridViewHolder>() {
          return imageUrls.size
      }
 
-    override fun onViewRecycled(holder: GridViewHolder) {
-        super.onViewRecycled(holder)
-        holder.onViewRecycled()
+
+    override fun onViewRecycled(holder: ViewHolder) {
+        when(holder) {
+            is GridViewHolder -> holder.onViewRecycled(holder.adapterPosition)
+        }
     }
 
-     override fun onBindViewHolder(holder: GridViewHolder, position: Int) {
+     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
          Timber.i("Binding at position: $position")
-         holder.bind(imageUrls[position], position)
+         when(holder) {
+             is GridViewHolder -> { holder.bind(imageUrls[position], position) }
+         }
      }
 
 

@@ -22,38 +22,44 @@ object ImageLoader {
 
     init {
         // Use 1/8th of the available memory for this memory cache.
-        val cacheSize = (Runtime.getRuntime().maxMemory() / 1024) / 8
+        val cacheSize = (Runtime.getRuntime().maxMemory() / 1024) / 2
         memoryCache = LruCache<String, Bitmap>(cacheSize.toInt())
         memCacheLog = arrayListOf()
     }
 
-    fun loadImage(url: String, imageView: ImageView, progressBar: ProgressBar, position: Int) {
+    fun loadImage(url: String, imageView: ImageView, position: Int) {
         cancelPotentialWork(imageView)
 
-        val cachedBitmap = getBitmapFromMemCache(url) ?: DiskCacheUtils.getBitmapFromDiskCache(url)
-        if (cachedBitmap != null) {
-            CoroutineScope(Dispatchers.Main).launch {
-                imageView.setImageBitmap(cachedBitmap.scaleDown(Constants.IMAGE_WIDTH, Constants.IMAGE_HEIGHT))
-                progressBar.visibility = View.GONE
+        val job = CoroutineScope(Dispatchers.Main).launch {
+            val cachedBitmap = withContext(Dispatchers.IO) {
+                getBitmapFromMemCache(url) ?: DiskCacheUtils.getBitmapFromDiskCache(url)
             }
 
-        } else {
-            imageView.tag = url
-            val job = CoroutineScope(Dispatchers.IO).launch {
-                val bitmap = downloadBitmap(url)
-                    if (imageView.tag == url && bitmap != null) {
-                        withContext(Dispatchers.Main) {
-                            imageView.setImageBitmap(bitmap)
-                            progressBar.visibility = View.GONE
-                        }
-                        CoroutineScope(Dispatchers.IO).launch {
-                            addBitmapToMemoryCache(url, bitmap.scaleDown(Constants.IMAGE_WIDTH, Constants.IMAGE_HEIGHT), position)
-                            DiskCacheUtils.putBitmapToDiskCache(url, bitmap)
-                        }
-                    }
+            if (cachedBitmap != null) {
+                imageView.setImageBitmap(cachedBitmap)
+                //progressBar.visibility = View.GONE
+            } else {
+                imageView.tag = url
+
+                val bitmap = withContext(Dispatchers.IO){
+                    downloadBitmap(url)
                 }
-            jobMap[imageView] = job
+                if (imageView.tag == url && bitmap != null) {
+                    imageView.setImageBitmap(bitmap)
+                    //progressBar.visibility = View.GONE
+
+                    // Add to memory cache using IO dispatcher
+                    withContext(Dispatchers.IO) {
+                        addBitmapToMemoryCache(url, bitmap, position)
+                        DiskCacheUtils.putBitmapToDiskCache(url, bitmap)
+                    }
+
+                }
+
+            }
         }
+        jobMap[imageView] = job
+
     }
 
     fun cancelPotentialWork(imageView: ImageView) {

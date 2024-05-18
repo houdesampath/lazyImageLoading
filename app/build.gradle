@@ -83,6 +83,16 @@ dependencies {
     // Disk LRU Cache
     implementation libs.disklrucache
 
+    //Pagination
+    implementation libs.androidx.paging.runtime
+
+    //Glide
+    implementation libs.glide
+
+    //RecyclerView
+    implementation(libs.androidx.recyclerview)
+
+
 }
 
 kapt {
